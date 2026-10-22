@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-step installer for php2shell-fix.
 #
-#   curl -fsSL https://raw.githubusercontent.com/xbuddhi/php2shell-fix/v1.0.2/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/xbuddhi/php2shell-fix/v1.0.3/install.sh | sudo bash
 #
 # Downloads the pinned release, verifies it, installs it as `php2shell-fix`, shows the
 # report, and asks before fixing anything. Options are passed on to php2shell-fix:
@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-VERSION=1.0.2
+VERSION=1.0.3
 SCRIPT_SHA256=3a1ff0b6352bfae9fefbe2cb757c0e66d38fb9aa786079607b1f82804e544a89   # sha256 of php2shell-fix.sh in this release
 REPO=xbuddhi/php2shell-fix
 PREFIX=/opt/php2shell-fix
@@ -67,7 +67,8 @@ if [ "$CHECK" = 1 ]; then
 fi
 
 if [ "$YES" = 0 ]; then
-    if [ -r /dev/tty ] && [ -w /dev/tty ]; then
+    # /dev/tty always exists; only opening it shows whether there's a terminal.
+    if (: < /dev/tty) 2> /dev/null; then
         printf 'Fix the installs marked "needs ..." now? Each affected PHP service is reloaded or restarted once. [y/N] ' > /dev/tty
         read -r answer < /dev/tty || answer=""
         [[ $answer == [yY]* ]] || { log "nothing changed; to fix later: sudo php2shell-fix --apply"; exit 0; }
