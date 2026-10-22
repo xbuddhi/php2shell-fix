@@ -47,7 +47,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { image: "debian:11", from: "7.4.32", expect: "7.4.33" }   # EOL: official backport
+          - { image: "ubuntu:22.04", from: "7.4.32", expect: "7.4.33" }   # EOL: official backport
           - { image: "debian:12", from: "8.2.30", expect: "8.2.35" }   # supported: new release
     container: ${{ matrix.image }}
     steps:
