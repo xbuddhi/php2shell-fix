@@ -11,7 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: shellcheck -S warning php2shell-fix.sh
+      - run: shellcheck -S warning php2shell-fix.sh install.sh
+      - name: install.sh pins the current php2shell-fix.sh
+        run: |
+          pinned=$(sed -n 's/^SCRIPT_SHA256=\([0-9a-f]*\).*/\1/p' install.sh)
+          actual=$(sha256sum php2shell-fix.sh | cut -d' ' -f1)
+          [ "$pinned" = "$actual" ] || { echo "update SCRIPT_SHA256 in install.sh to $actual"; exit 1; }
+      - name: install.sh version matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: grep -qx "VERSION=${GITHUB_REF_NAME#v}" install.sh
 
   # Distro PHP: the script must find it as a package and run the package manager.
   packages:

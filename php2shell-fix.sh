@@ -17,7 +17,7 @@
 
 set -Eeuo pipefail   # -E so the rollback ERR trap also fires inside functions
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SCRIPT_DIR=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)   # follows the installed symlink
 if [ -d /www/server ]; then WORK=${WORK:-/www/server/php2shell-build}; else WORK=${WORK:-/var/tmp/php2shell-build}; fi
 MARKER=.php2shell-patched
 CVE_RE='CVE-2026-10961[89]'

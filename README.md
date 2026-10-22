@@ -19,9 +19,28 @@ the PHP project and by your OS vendor, and its patches are verifiable byte for b
 
 ## Quick start
 
+One command. It shows what's vulnerable and **asks before changing anything**:
+
 ```bash
-curl -fsSL https://github.com/xbuddhi/php2shell-fix/archive/refs/tags/v1.0.1.tar.gz | tar xz
-cd php2shell-fix-1.0.1
+curl -fsSL https://raw.githubusercontent.com/xbuddhi/php2shell-fix/v1.0.2/install.sh | sudo bash
+```
+
+| Variant | What it does |
+|---|---|
+| `... \| sudo bash -s -- --check` | Report only, never fix |
+| `... \| sudo bash -s -- --yes` | Fix without asking (unattended: Ansible, many servers) |
+| `... \| sudo bash -s -- --yes --only 7.4` | Fix only some installs |
+
+The installer downloads the pinned `v1.0.2` release, refuses to run if the script's sha256
+doesn't match, and installs it to `/opt/php2shell-fix`. Run `sudo php2shell-fix` any time
+to re-check, e.g. after a panel update.
+[Read the installer](install.sh) before piping it to a root shell; it's about 80 lines.
+
+Prefer to look before you run? Download and run it by hand:
+
+```bash
+curl -fsSL https://github.com/xbuddhi/php2shell-fix/archive/refs/tags/v1.0.2.tar.gz | tar xz
+cd php2shell-fix-1.0.2
 sudo ./php2shell-fix.sh            # check only: lists every PHP and whether it's vulnerable
 sudo ./php2shell-fix.sh --apply    # fix what it can (backs up first, rolls back on failure)
 ```
