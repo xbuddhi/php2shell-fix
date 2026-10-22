@@ -20,8 +20,8 @@ the PHP project and by your OS vendor, and its patches are verifiable byte for b
 ## Quick start
 
 ```bash
-curl -fsSL https://github.com/xbuddhi/php2shell-fix/archive/refs/tags/v1.0.0.tar.gz | tar xz
-cd php2shell-fix-1.0.0
+curl -fsSL https://github.com/xbuddhi/php2shell-fix/archive/refs/tags/v1.0.1.tar.gz | tar xz
+cd php2shell-fix-1.0.1
 sudo ./php2shell-fix.sh            # check only: lists every PHP and whether it's vulnerable
 sudo ./php2shell-fix.sh --apply    # fix what it can (backs up first, rolls back on failure)
 ```

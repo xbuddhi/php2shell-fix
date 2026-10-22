@@ -78,7 +78,7 @@ candidates() {
             ls -d "$d"/php* "$d"/lsphp* 2>/dev/null || true
         done
         find /opt /usr/local /www/server /usr/lib/cgi-bin -maxdepth 6 \( -type f -o -type l \) \
-            -regextype posix-extended -regex '.*/(php|php-cgi|php-fpm|lsphp)[0-9.]*' 2>/dev/null || true
+            -regextype posix-extended -regex '.*/(php(-fpm|-cgi)?|lsphp)[0-9.]*' 2>/dev/null || true
         for d in /proc/[0-9]*; do readlink "$d/exe" 2>/dev/null || true; done
     } | while read -r p; do
         p=$(readlink -f "$p" 2>/dev/null) || continue
