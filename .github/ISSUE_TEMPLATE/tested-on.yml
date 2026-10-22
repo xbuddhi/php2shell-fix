@@ -1,0 +1,35 @@
+name: Tested on my server
+description: Report that php2shell-fix worked (or didn't) on your setup, so others know it's safe there
+title: "Tested on: <distro> + <panel>"
+labels: ["tested-on"]
+body:
+  - type: input
+    id: os
+    attributes:
+      label: OS and version
+      placeholder: Ubuntu 22.04, AlmaLinux 9, Debian 12...
+    validations:
+      required: true
+  - type: input
+    id: panel
+    attributes:
+      label: Control panel (if any)
+      placeholder: aaPanel 7.x, DirectAdmin, cPanel, Plesk, HestiaCP, CyberPanel, none
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - Everything fixed
+        - Partly fixed (see report)
+        - Failed / rolled back
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Output of `sudo ./php2shell-fix.sh` after the run
+      description: Remove hostnames or paths you don't want public.
+      render: text
+    validations:
+      required: true

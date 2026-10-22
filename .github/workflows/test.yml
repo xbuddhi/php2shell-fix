@@ -1,0 +1,76 @@
+name: test
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"   # weekly, catches distro and php.net changes
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck -S warning php2shell-fix.sh
+
+  # Distro PHP: the script must find it as a package and run the package manager.
+  packages:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "debian:12", "rockylinux:9"]
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install distro PHP
+        run: |
+          if command -v apt-get > /dev/null; then
+            apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q php-cli php-fpm gzip
+          else
+            dnf install -y -q php-cli php-fpm findutils gzip procps-ng
+          fi
+      - name: Report
+        run: |
+          ./php2shell-fix.sh 2>&1 | tee report.txt || true
+          grep -E '^ +(deb|rpm):php[0-9.]+ ' report.txt
+      - name: Apply
+        run: |
+          ./php2shell-fix.sh --apply --no-restart 2>&1 | tee apply.txt || true
+          grep -E 'upgrading [0-9]+ installed PHP packages|all PHP installations are fixed' apply.txt
+          grep -q 'ERROR' apply.txt && exit 1 || true
+
+  # Source builds like aaPanel's: an old release in /opt, rebuilt by the script.
+  source-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "debian:11", from: "7.4.32", expect: "7.4.33" }   # EOL: official backport
+          - { image: "debian:12", from: "8.2.30", expect: "8.2.35" }   # supported: new release
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build an outdated PHP into /opt
+        run: |
+          apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+            build-essential pkg-config libxml2-dev libsqlite3-dev curl patch
+          curl -fsSL https://www.php.net/distributions/php-${{ matrix.from }}.tar.gz | tar xz -C /tmp
+          cd /tmp/php-${{ matrix.from }}
+          ./configure --prefix=/opt/php-${{ matrix.from }} --disable-all --enable-fpm --enable-session --without-pear > /dev/null
+          make -j"$(nproc)" > /dev/null && make install > /dev/null
+          cp /opt/php-${{ matrix.from }}/etc/php-fpm.conf.default /opt/php-${{ matrix.from }}/etc/php-fpm.conf
+          cp /opt/php-${{ matrix.from }}/etc/php-fpm.d/www.conf.default /opt/php-${{ matrix.from }}/etc/php-fpm.d/www.conf
+          sed -i 's/^group = nobody/group = nogroup/' /opt/php-${{ matrix.from }}/etc/php-fpm.d/www.conf
+      - name: Report shows it as vulnerable
+        run: |
+          ./php2shell-fix.sh | tee report.txt || true
+          grep -E "/opt/php-${{ matrix.from }} +${{ matrix.from }} +src +needs rebuild" report.txt
+      - name: Apply
+        run: ./php2shell-fix.sh --apply --no-restart
+      - name: Installed and reported as fixed
+        run: |
+          /opt/php-${{ matrix.from }}/bin/php -n -v | grep "PHP ${{ matrix.expect }}"
+          ./php2shell-fix.sh | grep -E "/opt/php-${{ matrix.from }} +${{ matrix.expect }} +src +fixed"
+          ls -d /opt/php-${{ matrix.from }}.bak-${{ matrix.from }}-*

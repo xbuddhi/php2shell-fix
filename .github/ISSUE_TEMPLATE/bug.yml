@@ -1,0 +1,27 @@
+name: Bug report
+description: The script misdetected an install, failed, or did something unexpected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Security issue in this script itself?** Please don't open a public issue; use
+        [private vulnerability reporting](../security/advisories/new) instead.
+  - type: input
+    id: os
+    attributes:
+      label: OS, version and control panel
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Full script output
+      description: For build failures, also attach the configure.log / make.log it points to.
+      render: text

@@ -1,15 +1,42 @@
-# php2shell-fix
+# php2shell-fix: patch CVE-2026-109618 & CVE-2026-109619 on any Linux server
 
-Find every PHP installation on a Linux server and fix **CVE-2026-109618** and
-**CVE-2026-109619** ("php2shell"), two critical unauthenticated remote code execution bugs
-in PHP core disclosed on 2026-10-21.
+[![test](https://github.com/xbuddhi/php2shell-fix/actions/workflows/test.yml/badge.svg)](https://github.com/xbuddhi/php2shell-fix/actions/workflows/test.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-It's built for servers where PHP comes from more than one place, such as a VPS with a
-control panel that compiles its own PHP next to the distro's packages. Panels like aaPanel
-compile PHP from source, so `apt`/`yum` updates never reach those copies.
+Check and fix **php2shell** (**CVE-2026-109618**, **CVE-2026-109619**), the critical
+unauthenticated PHP remote code execution bugs disclosed on 2026-10-21, on **every** PHP
+install on a server. One command covers distro packages, **aaPanel / BT Panel**,
+**DirectAdmin**, cPanel EA-PHP, Plesk, LiteSpeed and hand-compiled PHP, including
+**PHP 7.4, 8.0 and 8.1** that no longer get official releases.
+
+Most advisories say "upgrade to 8.3.36". That doesn't help if your control panel compiled
+PHP from source (`apt`/`yum` never touch it), or if your sites still run an end-of-life PHP.
+This script handles both cases.
 
 **This project contains no security code of its own.** It only applies fixes published by
-the PHP project and by your OS vendor.
+the PHP project and by your OS vendor, and its patches are verifiable byte for byte
+([how](#verifying-the-patches-yourself)).
+
+## Quick start
+
+```bash
+curl -fsSL https://github.com/xbuddhi/php2shell-fix/archive/refs/tags/v1.0.0.tar.gz | tar xz
+cd php2shell-fix-1.0.0
+sudo ./php2shell-fix.sh            # check only: lists every PHP and whether it's vulnerable
+sudo ./php2shell-fix.sh --apply    # fix what it can (backs up first, rolls back on failure)
+```
+
+Example report from an aaPanel server before fixing:
+
+```text
+==> looking for PHP installations
+
+  INSTALL                              VERSION  TYPE    STATUS
+  /www/server/php/74                   7.4.33   src     needs rebuild -> 7.4.33 + official backport
+  /www/server/php/83                   8.3.12   src     needs rebuild -> 8.3.36
+
+==> report only; rerun with --apply to fix (each affected PHP service restarts once, a few seconds)
+```
 
 ## What it does with each install
 
@@ -119,6 +146,48 @@ for p in 7.4:712e60f9ed 8.0:82f8f31b16 8.1:1d7dec178a; do
   curl -sL https://github.com/php/php-src/commit/${p#*:}.patch | git patch-id | cut -d' ' -f1
 done
 ```
+
+## FAQ
+
+**Am I affected by php2shell?**
+Yes, if any PHP before 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 serves web requests through
+php-fpm, Apache mod_php, php-cgi, LiteSpeed or FrankenPHP, unless your vendor backported
+the fix. Run `sudo ./php2shell-fix.sh` without `--apply` to see every install and its status.
+
+**How do I patch php2shell on aaPanel?**
+aaPanel's PHP lives in `/www/server/php/NN` and is compiled from source, so system updates
+skip it. `sudo ./php2shell-fix.sh --apply` rebuilds each version with the panel's own
+build flags. Afterwards, don't reinstall those versions from the panel.
+
+**Is there a fix for PHP 7.4 / 8.0 / 8.1?**
+Upstream released no new versions, but the PHP security team published official minimal
+backports. This script applies them to source builds. Distro packages get them from the
+vendor: Ubuntu Pro (ESM) for Ubuntu 20.04, Freexian ELTS for Debian 11, RHEL/AlmaLinux
+for their streams.
+
+**What about PHP 7.0 – 7.3 or PHP 5?**
+There is no official fix, and this script won't invent one. Move those sites to PHP 8.2+.
+
+**Will my sites go down?**
+php-fpm is reloaded, not restarted, so the listening socket stays open. On the reference
+aaPanel server, 4,022 requests made during a live run all succeeded. Apache, LiteSpeed
+and other services get a normal restart of a few seconds.
+
+**Can I undo it?**
+Every source rebuild keeps a full copy of the old install next to it
+(`<prefix>.bak-<version>-<timestamp>`), and failed rebuilds are restored automatically.
+
+**I can't patch right now. What can I do?**
+The [advisory](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w)
+lists partial mitigations: disable `session.upload_progress`, keep `post_max_size` small,
+and block multipart requests at the frontend if you don't need them. They reduce the risk
+but don't remove it.
+
+## Contributing
+
+The most useful contribution is a
+[**"Tested on" report**](https://github.com/xbuddhi/php2shell-fix/issues/new?template=tested-on.yml)
+from a setup not listed above. If this saved you time, a ⭐ helps other admins find it.
 
 ## References
 

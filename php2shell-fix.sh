@@ -112,13 +112,13 @@ owner_of() {
 
 php_config_of() { ls "$1"/bin/php-config* 2>/dev/null | head -1; }
 
-declare -A KIND VER BIN STATUS
+declare -A KIND VER STATUS
 IDS=()
 
 # Installs are keyed by prefix for source builds and by package type + branch otherwise.
 scan() {
     local bin ver owner id
-    IDS=(); KIND=(); VER=(); BIN=(); STATUS=()
+    IDS=(); KIND=(); VER=(); STATUS=()
     while read -r bin; do
         trusted "$bin" || { warn "skipping $bin: not root-owned, or writable by non-root users"; continue; }
         ver=$(php_version "$bin")
@@ -127,7 +127,7 @@ scan() {
         if [ "$owner" = src ]; then id=$(dirname "$(dirname "$bin")"); else id="${owner%%:*}:php$(branch_of "$ver")"; fi
         if [ -n "$ONLY" ] && [[ ",$ONLY," != *",$id,"* && ",$ONLY," != *",$(branch_of "$ver"),"* ]]; then continue; fi
         [ -z "${KIND[$id]:-}" ] || continue
-        IDS+=("$id"); KIND[$id]=$owner; VER[$id]=$ver; BIN[$id]=$bin
+        IDS+=("$id"); KIND[$id]=$owner; VER[$id]=$ver
     done < <(candidates)
 }
 
@@ -137,7 +137,11 @@ pkg_fixed() {  # owner version
     t=${TARGET[$(branch_of "$2")]:-}
     if [ -n "$t" ] && [ -z "$(cut -d' ' -f3 <<<"$t")" ] && ver_ge "$2" "${t%% *}"; then return 0; fi
     case $kind in
-        deb) zgrep -qsE "$CVE_RE" "/usr/share/doc/$pkg/changelog.Debian.gz" ;;
+        deb) if [ -f "/usr/share/doc/$pkg/changelog.Debian.gz" ]; then
+                 zgrep -qsE "$CVE_RE" "/usr/share/doc/$pkg/changelog.Debian.gz"
+             else   # minimized images drop /usr/share/doc
+                 apt-get changelog "$pkg" 2>/dev/null | grep -qE "$CVE_RE"
+             fi ;;
         rpm) rpm -q --changelog "$pkg" 2>/dev/null | grep -qE "$CVE_RE" ;;
         *)   return 1 ;;
     esac
@@ -213,9 +217,9 @@ unit_stale() { stale | grep -qx "$1"; }
 # listening socket, so new requests queue instead of failing. Everything else, and any
 # FPM that is still on the old binary after 30 s, gets a full restart.
 restart_unit() {
-    local u=$1 i
+    local u=$1
     if [[ $u == *fpm* ]] && systemctl reload "$u" 2>/dev/null; then
-        for i in $(seq 30); do
+        for _ in $(seq 30); do
             sleep 1
             systemctl is-active --quiet "$u" && ! unit_stale "$u" && { log "reloaded $u"; return 0; }
         done
@@ -303,7 +307,8 @@ rebuild() {
     [ -f "$tarball" ] || curl -fSL --retry 3 -o "$tarball" "https://www.php.net/distributions/php-$release.tar.gz"
     check_sha256 "$tarball" "$tsha"
 
-    local build="$WORK/$(tr / _ <<<"${dir#/}")"
+    local build
+    build="$WORK/$(tr / _ <<<"${dir#/}")"
     src="$build/php-$release"
     rm -rf "$build" && mkdir -p "$build"
     tar -xzf "$tarball" -C "$build"
@@ -328,6 +333,7 @@ rebuild() {
     cp -a "$dir" "$backup"
 
     # From here on, any failure restores the backup.
+    # shellcheck disable=SC2064  # the paths must be captured now
     trap "rollback '$dir' '$backup'" ERR
     (cd "$src" && make install > "$build/install.log" 2>&1)
 
@@ -346,7 +352,8 @@ rebuild() {
         fi
     done
 
-    [ -z "$fpm" ] || "$fpm" -t ${conf:+-y "$conf"}
+    [ -n "$conf" ] || conf="$dir/etc/php-fpm.conf"
+    [ -z "$fpm" ] || [ ! -f "$conf" ] || "$fpm" -t -y "$conf"
     if [ -n "${patch:-}" ]; then echo "$release + $patch $psha" > "$dir/$MARKER"; fi
 
     if [ "$RESTART" = 1 ]; then
