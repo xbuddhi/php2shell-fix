@@ -164,6 +164,9 @@ status_of() {
     fi
     if [ -n "${patch:-}" ]; then
         [ -f "$id/$MARKER" ] && [ "$ver" = "$rel" ] && { echo ok; return; }
+        # No upstream release exists past the final one, so a higher version is a
+        # vendor-patched build (aaPanel ships 7.4.34 and 8.1.35, for example).
+        [ "$ver" != "$rel" ] && ver_ge "$ver" "$rel" && { echo vendor; return; }
     elif ver_ge "$ver" "$rel"; then
         echo ok; return
     fi
@@ -175,6 +178,7 @@ describe() {  # id status
     t=${TARGET[$(branch_of "${VER[$1]}")]:-}
     case $2 in
         ok)      echo "fixed" ;;
+        vendor)  echo "fixed by a vendor build (newer than the final php.net ${t%% *}); confirm with your vendor" ;;
         pkg)     if [ "$APPLIED" = 1 ]; then
                      echo "VULNERABLE: no fixed package in your repositories (Ubuntu: Ubuntu Pro/ESM, Debian 11: Freexian ELTS)"
                  else
@@ -384,7 +388,7 @@ todo=0 unfixed=0
 for id in "${IDS[@]}"; do
     case ${STATUS[$id]} in
         pkg|rebuild) todo=1 ;;
-        ok)          ;;
+        ok|vendor)   ;;
         *)           unfixed=1 ;;
     esac
 done
@@ -422,6 +426,6 @@ restart_stale
 log "result"
 scan
 report
-for id in "${IDS[@]}"; do [ "${STATUS[$id]}" = ok ] || exit 1; done
+for id in "${IDS[@]}"; do [[ ${STATUS[$id]} == ok || ${STATUS[$id]} == vendor ]] || exit 1; done
 log "all PHP installations are fixed"
-[ ! -d /www/server/panel ] || log "aaPanel: do not use the panel's PHP update/reinstall for these versions; it would rebuild without the fix"
+[ ! -d /www/server/panel ] || log "aaPanel: later PHP updates from the panel are fine as long as they install its patched builds (7.4.34+, 8.1.35+); rerun this report to check"

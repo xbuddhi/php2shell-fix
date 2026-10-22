@@ -113,8 +113,12 @@ mod_php paths use the same detection but are untested.
 - **Distro EOL PHP may have no free fix.** Ubuntu 20.04's PHP 7.4 is only fixed through
   Ubuntu Pro (ESM); Debian 11's only through Freexian ELTS. The script tells you when no fixed
   package is available.
-- **Panels:** don't use the panel's own PHP update or reinstall for these versions afterwards.
-  It would rebuild them without the fix. Patched EOL source installs are marked with
+- **Use your panel's own update when it has one.** Several panels now ship patched builds,
+  e.g. aaPanel 7.4.34 and 8.1.35, and DirectAdmin CustomBuild for 7.4–8.5. This script is
+  for whatever those don't cover yet: other panels, versions still pending, hand-built PHP,
+  or one check across a whole server. Builds past the final php.net release (like 7.4.34)
+  are reported as vendor-fixed and never rebuilt. If you reinstall a version from the panel
+  later, rerun the report. EOL installs patched by this script are marked with
   `<prefix>/.php2shell-patched`.
 - **Not covered:** Docker containers (rebuild on fixed images), Windows, and mod_php built
   from source. The script warns when it sees these.
@@ -155,9 +159,12 @@ php-fpm, Apache mod_php, php-cgi, LiteSpeed or FrankenPHP, unless your vendor ba
 the fix. Run `sudo ./php2shell-fix.sh` without `--apply` to see every install and its status.
 
 **How do I patch php2shell on aaPanel?**
-aaPanel's PHP lives in `/www/server/php/NN` and is compiled from source, so system updates
-skip it. `sudo ./php2shell-fix.sh --apply` rebuilds each version with the panel's own
-build flags. Afterwards, don't reinstall those versions from the panel.
+First choice: aaPanel's own update (App Store → Installed → update each PHP version). It
+ships patched builds 7.4.34 and 8.1.35 and the upstream 8.2+ releases; 8.0 was still in
+testing at the time of writing. aaPanel's PHP lives in `/www/server/php/NN` and is compiled
+from source, so system updates skip it. For a version the panel hasn't patched yet, run
+`sudo ./php2shell-fix.sh --apply`, which rebuilds it with the panel's own build flags. Either
+way, run `sudo ./php2shell-fix.sh` afterwards to confirm every version is fixed.
 
 **Is there a fix for PHP 7.4 / 8.0 / 8.1?**
 Upstream released no new versions, but the PHP security team published official minimal
