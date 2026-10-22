@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-step installer for php2shell-fix.
 #
-#   curl -fsSL https://raw.githubusercontent.com/xbuddhi/php2shell-fix/v1.0.3/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/xbuddhi/php2shell-fix/v1.0.4/install.sh | sudo bash
 #
 # Downloads the pinned release, verifies it, installs it as `php2shell-fix`, shows the
 # report, and asks before fixing anything. Options are passed on to php2shell-fix:
@@ -12,8 +12,8 @@
 
 set -euo pipefail
 
-VERSION=1.0.3
-SCRIPT_SHA256=3a1ff0b6352bfae9fefbe2cb757c0e66d38fb9aa786079607b1f82804e544a89   # sha256 of php2shell-fix.sh in this release
+VERSION=1.0.4
+SCRIPT_SHA256=53d8da00a7d0d3cad79858ee2d06c23ded1c57f7028a861d4812274198ead71c   # sha256 of php2shell-fix.sh in this release
 REPO=xbuddhi/php2shell-fix
 PREFIX=/opt/php2shell-fix
 LINK=/usr/local/sbin/php2shell-fix
@@ -56,20 +56,19 @@ chmod 755 "$PREFIX/php2shell-fix.sh"
 ln -sf "$PREFIX/php2shell-fix.sh" "$LINK"
 log "installed to $PREFIX (run it again any time with: sudo php2shell-fix)"
 
-report=$("$LINK" ${PASS[@]+"${PASS[@]}"} 2>&1) && rc=0 || rc=$?
+report=$("$LINK" --from-installer ${PASS[@]+"${PASS[@]}"} 2>&1) && rc=0 || rc=$?
 printf '%s\n' "$report"
-if ! grep -qE 'needs (rebuild|package upgrade)' <<<"$report"; then
-    exit "$rc"
-fi
+n=$(grep -cE 'needs (rebuild|package upgrade)' <<<"$report" || true)
+[ "$n" -gt 0 ] || exit "$rc"
 if [ "$CHECK" = 1 ]; then
-    log "check only; to fix: sudo php2shell-fix --apply"
+    log "$n install(s) need fixing; check only, nothing changed. To fix: sudo php2shell-fix --apply"
     exit 0
 fi
 
 if [ "$YES" = 0 ]; then
     # /dev/tty always exists; only opening it shows whether there's a terminal.
     if (: < /dev/tty) 2> /dev/null; then
-        printf 'Fix the installs marked "needs ..." now? Each affected PHP service is reloaded or restarted once. [y/N] ' > /dev/tty
+        printf '%s install(s) above need fixing. Fix them now? Each affected PHP service is reloaded or restarted once. [y/N] ' "$n" > /dev/tty
         read -r answer < /dev/tty || answer=""
         [[ $answer == [yY]* ]] || { log "nothing changed; to fix later: sudo php2shell-fix --apply"; exit 0; }
     else
@@ -78,4 +77,5 @@ if [ "$YES" = 0 ]; then
     fi
 fi
 
-"$LINK" --apply ${PASS[@]+"${PASS[@]}"}   # not exec, so the EXIT trap still cleans up
+log "fixing $n install(s) now"
+"$LINK" --apply --from-installer ${PASS[@]+"${PASS[@]}"}   # not exec, so the EXIT trap still cleans up

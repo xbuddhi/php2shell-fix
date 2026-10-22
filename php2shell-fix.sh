@@ -25,6 +25,7 @@ BIN_RE='^(php|php-cgi|php-fpm|lsphp)[0-9.]*$'
 
 APPLY=0
 RESTART=1
+HINT=1   # install.sh prints its own next step
 ONLY=""
 APPLIED=0
 
@@ -49,6 +50,7 @@ while [ $# -gt 0 ]; do
     case $1 in
         --apply)      APPLY=1 ;;
         --no-restart) RESTART=0 ;;
+        --from-installer) HINT=0 ;;
         --only)       ONLY=$2; shift ;;
         -h|--help)    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *)            die "unknown option: $1" ;;
@@ -398,7 +400,7 @@ if [ "$todo" = 0 ]; then
     exit 1
 fi
 if [ "$APPLY" = 0 ]; then
-    log "report only; rerun with --apply to fix (each affected PHP service restarts once, a few seconds)"
+    [ "$HINT" = 0 ] || log "report only; rerun with --apply to fix (each affected PHP service restarts once, a few seconds)"
     exit 0
 fi
 
